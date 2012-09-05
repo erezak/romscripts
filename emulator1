@@ -1,0 +1,37 @@
+#
+#  Copyright (C) 2012 Erez A. Korn
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+export ANDROID_PRODUCT_OUT=$ANDROID_TOP_DIR/build/files/emulator
+export ANDROID_BUILD_TOP=$ROM_TOP_DIR
+MY_SKIN_DIR=$ANDROID_TOP_DIR
+
+if [ "$1" = "tablet" ] || [ "$1" = "Tablet" ] || [ "$1" = "tab" ]; then
+	MY_SKIN=GalaxyTab
+elif [ "$1" = "maguro" ] || [ "$1" = "phone" ]; then
+	MY_SKIN=GalaxyNexus
+	#MY_EXTRA="-scale 0.42 -onion-alpha 100 -onion $MY_SKIN_DIR/$MY_SKIN/overlay.png"
+fi
+
+if [ "$1" = "debug" ] || [ "$2" = "debug" ]; then
+	MY_DEBUG="-verbose"
+fi
+
+
+if [ "$MY_SKIN" = "" ]; then
+	emulator -sdcard $ANDROID_PRODUCT_OUT/sdcard.img -partition-size 300 &
+else
+	emulator -sdcard $ANDROID_PRODUCT_OUT/sdcard.img -partition-size 300 -skindir $MY_SKIN_DIR -skin $MY_SKIN -gpu on $MY_EXTRA $MY_DEBUG &
+fi
+

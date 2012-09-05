@@ -1,0 +1,160 @@
+#
+#  Copyright (C) 2012 Erez A. Korn
+# 
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+# 
+#  http://www.apache.org/licenses/LICENSE-2.0
+# 
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+# 
+for i in $@
+do
+        case $i in
+        maguro)
+                MY_MAGURO=yes
+                ;;
+        i9100)
+                MY_I9100=yes
+                ;;
+        p1)
+                MY_P1=yes
+                ;;
+        emulator)
+                MY_EMULATOR=yes
+                ;;
+        --sync)
+                MY_SYNC_REPO=yes
+                ;;
+        --all)    
+                MY_MAGURO=yes
+                MY_I9100=yes
+                MY_P1=yes
+                MY_EMULATOR=yes
+                ;;
+	--slow)
+		MY_BUILD_SPEED=slow
+		;;
+        --slowest)
+                MY_BUILD_SPEED=slowest
+                ;;
+	--fast)
+		MY_BUILD_SPEED=fast
+		;;
+        *)
+		echo "Unknown option: $i"
+		exit 1
+                ;;
+        esac
+done
+
+echo "********************************"
+echo "Building ROM with configuration:"
+if [ "$MY_SYNC_REPO" = "yes" ]; then
+	echo "- Synchronizing repo"
+else
+	echo "- no repo sync"
+fi
+if [ "$MY_P1" = "yes" ]; then
+	echo "- Samsung Galaxy Tab (OG)"
+fi
+if [ "$MY_I9100" = "yes" ]; then
+        echo "- Samsung Galaxy S II"
+fi
+if [ "$MY_MAGURO" = "yes" ]; then
+        echo "- Google Galaxy Nexus"
+fi
+if [ "$MY_EMULATOR" = "yes" ]; then
+        echo "- Emulator Image"
+fi
+if [ "$MY_BUILD_SPEED" = "slowest" ]; then
+        echo "- 2 build threads, using make"
+elif [ "$MY_BUILD_SPEED" = "slow" ]; then
+	echo "- 2 build threads, using mka"
+elif [ "$MY_BUILD_SPEED" = "fast" ]; then
+	echo "- 16 build threads"
+else
+	echo "- 12 build threads"
+fi
+echo -n "Do you wish to proceed? "
+read MY_ANSWER
+if [ "$MY_ANSWER" != "yes" ] && [ "$MY_ANSWER" != "y" ]; then
+	exit
+fi
+
+
+cd ~
+. ~/bin/rom-env-setup
+cd $ROM_TOP_DIR
+
+if [ "$MY_SYNC_REPO" = "yes" ]; then
+	printf "*******************\nSynchronizing repo\n\n\n"
+	romsync
+	if [ "$?" != "0" ]; then
+		echo "something went wrong with repo sync"
+		exit 1
+	fi
+	printf "*******************\nRepository Updated\n\n\n"
+	sleep 5
+fi
+
+mkdir -p $ANDROID_TOP_DIR/build/files/emulator/system
+
+function maketarget () {
+        printf "*******************\nBuilding $MY_CURRENT_TARGET\n\n\n"
+	if [ "$MY_BUILD_SPEED" = "slowest" ]; then
+        	MY_BUILD_CMD="make -j2"
+	elif [ "$MY_BUILD_SPEED" = "slow" ]; then
+        	MY_BUILD_CMD="mka -j2"
+	elif [ "$MY_BUILD_SPEED" = "fast" ]; then
+        	MY_BUILD_CMD="mka -j16"
+	else
+        	MY_BUILD_CMD="mka -j12"
+	fi
+	if [ $MY_CURRENT_TARGET = emulator ]; then
+		MY_CURRENT_TARGET=generic
+		lunch full-eng
+	else
+        	lunch $MY_CURRENT_TARGET
+	fi
+       	rm $ROM_TOP_DIR/out/target/product/$MY_CURRENT_TARGET/system/build.prop
+	if [ $MY_CURRENT_TARGET != generic ]; then
+		MY_BUILD_CMD="$MY_BUILD_CMD bacon"
+	fi
+        $MY_BUILD_CMD 2>&1 | tee $ANDROID_TOP_DIR/build/$TARGET_PRODUCT-log.txt
+        MY_BUILD_RESULT=$?
+	if [ "$MY_BUILD_RESULT" = 0 ] && [ $MY_CURRENT_TARGET != generic ]; then
+                mv $ROM_TOP_DIR/out/target/product/$MY_CURRENT_TARGET/Sapir* $ANDROID_TOP_DIR/build/files/
+	elif [ "$MY_BUILD_RESULT" = 0 ] && [ $MY_CURRENT_TARGET = generic ]; then
+		mv $ROM_TOP_DIR/out/target/product/$MY_CURRENT_TARGET/*.img $ANDROID_TOP_DIR/build/files/emulator/
+		mv $ROM_TOP_DIR/out/target/product/$MY_CURRENT_TARGET/system/build.prop $ANDROID_TOP_DIR/build/files/emulator/system/
+	fi
+        echo "$TARGET_PRODUCT build has been performed" > $ANDROID_TOP_DIR/build/$TARGET_PRODUCT.build
+        echo "Code was $MY_BUILD_RESULT" >> $ANDROID_TOP_DIR/build/$TARGET_PRODUCT.build
+        tail -3 $ANDROID_TOP_DIR/build/$TARGET_PRODUCT-log.txt >> $ANDROID_TOP_DIR/build/$TARGET_PRODUCT.build
+        mail_files -t $BUILDER_EMAIL -s "$TARGET_PRODUCT Build" -b $ANDROID_TOP_DIR/build/$TARGET_PRODUCT-log.txt < $ANDROID_TOP_DIR/build/$TARGET_PRODUCT.build
+}
+
+
+if [ "$MY_P1" = "yes" ]; then
+        MY_CURRENT_TARGET=p1
+        maketarget
+fi
+if [ "$MY_I9100" = "yes" ]; then
+        MY_CURRENT_TARGET=i9100
+        maketarget
+fi
+if [ "$MY_MAGURO" = "yes" ]; then
+        MY_CURRENT_TARGET=maguro
+        maketarget
+fi
+if [ "$MY_EMULATOR" = "yes" ]; then
+        MY_CURRENT_TARGET=emulator
+        maketarget
+fi
+
