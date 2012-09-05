@@ -20,5 +20,9 @@ if [ "$?" = "0" ]; then
 	sed 's/^<li> CM Gerrit merges.*/<li> CM Gerrit merges as of '"$my_sync_date"'<\/li>/' $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn > $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn.tmp
 	mv $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn.tmp $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn
 else
+	echo "*******************************"
+	echo "** Repo did not succeed,     **"
+	echo "** please try again manually **" 
+	echo "*******************************"
 	exit 1
 fi
