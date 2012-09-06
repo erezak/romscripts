@@ -22,8 +22,17 @@ do
         i9100)
                 MY_I9100=yes
                 ;;
+        s2)
+                MY_I9100=yes
+                ;;
         p1)
                 MY_P1=yes
+                ;;
+        i9300)
+                MY_I9300=yes
+                ;;
+        s3)
+                MY_I9300=yes
                 ;;
         emulator)
                 MY_EMULATOR=yes
@@ -34,6 +43,7 @@ do
         --all)    
                 MY_MAGURO=yes
                 MY_I9100=yes
+		MY_I9300=yes
                 MY_P1=yes
                 MY_EMULATOR=yes
                 ;;
@@ -65,6 +75,9 @@ if [ "$MY_P1" = "yes" ]; then
 fi
 if [ "$MY_I9100" = "yes" ]; then
         echo "- Samsung Galaxy S II"
+fi
+if [ "$MY_I9300" = "yes" ]; then
+        echo "- Samsung Galaxy S III"
 fi
 if [ "$MY_MAGURO" = "yes" ]; then
         echo "- Google Galaxy Nexus"
@@ -147,6 +160,10 @@ if [ "$MY_P1" = "yes" ]; then
 fi
 if [ "$MY_I9100" = "yes" ]; then
         MY_CURRENT_TARGET=i9100
+        maketarget
+fi
+if [ "$MY_I9300" = "yes" ]; then
+        MY_CURRENT_TARGET=i9300
         maketarget
 fi
 if [ "$MY_MAGURO" = "yes" ]; then
