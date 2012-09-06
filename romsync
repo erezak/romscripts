@@ -17,7 +17,7 @@ cd $ROM_TOP_DIR
 realrepo sync
 if [ "$?" = "0" ]; then
 	export my_sync_date=`date -u`
-	sed 's/^<li> CM Gerrit merges.*/<li> CM Gerrit merges as of '"$my_sync_date"'<\/li>/' $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn > $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn.tmp
+	sed 's/^merges as of.*/merges as of '"$my_sync_date"'/' $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn > $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn.tmp
 	mv $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn.tmp $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn
 else
 	echo "*******************************"
