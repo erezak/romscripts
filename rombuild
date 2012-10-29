@@ -13,11 +13,25 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 # 
+MY_BUILD_VARIANT=userdebug
+
+if [ "$CUSTOM_BUILD_DATE" = "" ]; then
+    CUSTOM_BUILD_DATE="`date -u +%s`"
+fi
+
+echo "Building for `date -u --date=@$CUSTOM_BUILD_DATE`"
+
 for i in $@
 do
         case $i in
         maguro)
                 MY_MAGURO=yes
+                ;;
+        s)
+                MY_I9000=yes
+                ;;
+        i9000)
+                MY_I9000=yes
                 ;;
         i9100)
                 MY_I9100=yes
@@ -34,18 +48,29 @@ do
         s3)
                 MY_I9300=yes
                 ;;
+        d2att)
+                MY_D2ATT=yes
+                ;;
+        a200)
+                MY_A200=yes
+                ;;
         emulator)
                 MY_EMULATOR=yes
                 ;;
         --sync)
                 MY_SYNC_REPO=yes
                 ;;
-        --all)    
+        --interactive)
+		MY_INTERACTIVE=yes
+		;;
+        --all)  
                 MY_MAGURO=yes
+                MY_I9000=yes
                 MY_I9100=yes
 		MY_I9300=yes
+                MY_D2ATT=yes
                 MY_P1=yes
-                MY_EMULATOR=yes
+		MY_ALL=yes
                 ;;
 	--slow)
 		MY_BUILD_SPEED=slow
@@ -56,12 +81,27 @@ do
 	--fast)
 		MY_BUILD_SPEED=fast
 		;;
+	--faster)
+		MY_BUILD_SPEED=faster
+		;;
+	--fastest)
+		MY_BUILD_SPEED=fastest
+		;;
+	--eng)
+		MY_BUILD_VARIANT=eng
+		;;
         *)
 		echo "Unknown option: $i"
 		exit 1
                 ;;
         esac
 done
+
+if [ "$MY_INTERACTIVE" == "yes" ] && [ "$MY_ALL" == "yes" ]; then
+	echo "Can't use --all in conjunction with --interactive"
+	exit 1  
+fi
+
 
 echo "********************************"
 echo "Building ROM with configuration:"
@@ -73,26 +113,42 @@ fi
 if [ "$MY_P1" = "yes" ]; then
 	echo "- Samsung Galaxy Tab (OG)"
 fi
+if [ "$MY_I9000" = "yes" ]; then
+        echo "- Samsung Galaxy S"
+fi
 if [ "$MY_I9100" = "yes" ]; then
         echo "- Samsung Galaxy S II"
 fi
 if [ "$MY_I9300" = "yes" ]; then
         echo "- Samsung Galaxy S III"
 fi
+if [ "$MY_D2ATT" = "yes" ]; then
+        echo "- Samsung Galaxy S III - AT&T"
+fi
 if [ "$MY_MAGURO" = "yes" ]; then
         echo "- Google Galaxy Nexus"
+fi
+if [ "$MY_A200" = "yes" ]; then
+        echo "- Acer Iconia Tab A200"
 fi
 if [ "$MY_EMULATOR" = "yes" ]; then
         echo "- Emulator Image"
 fi
+if [ "$MY_BUILD_VARIANT" = "eng" ]; then
+	echo "- building ENG version"
+fi
 if [ "$MY_BUILD_SPEED" = "slowest" ]; then
-        echo "- 2 build threads, using make"
+        echo "- 1 build thread"
 elif [ "$MY_BUILD_SPEED" = "slow" ]; then
-	echo "- 2 build threads, using mka"
+	echo "- 2 build threads"
 elif [ "$MY_BUILD_SPEED" = "fast" ]; then
+	echo "- 11 build threads"
+elif [ "$MY_BUILD_SPEED" = "faster" ]; then
+	echo "- 14 build threads"
+elif [ "$MY_BUILD_SPEED" = "fastest" ]; then
 	echo "- 16 build threads"
 else
-	echo "- 12 build threads"
+	echo "- 8 build threads"
 fi
 echo -n "Do you wish to proceed? "
 read MY_ANSWER
@@ -102,6 +158,8 @@ fi
 
 
 cd ~
+LONG_HOSTNAME=$HOSTNAME
+export HOSTNAME=$SHORT_HOSTNAME
 . ~/bin/rom-env-setup
 cd $ROM_TOP_DIR
 
@@ -110,6 +168,7 @@ if [ "$MY_SYNC_REPO" = "yes" ]; then
 	romsync
 	if [ "$?" != "0" ]; then
 		echo "something went wrong with repo sync"
+		export HOSTNAME=$LONG_HOSTNAME
 		exit 1
 	fi
 	printf "*******************\nRepository Updated\n\n\n"
@@ -121,17 +180,25 @@ mkdir -p $ANDROID_TOP_DIR/build/files/emulator/system
 function maketarget () {
         printf "*******************\nBuilding $MY_CURRENT_TARGET\n\n\n"
 	if [ "$MY_BUILD_SPEED" = "slowest" ]; then
-        	MY_BUILD_CMD="make -j2"
+        	MY_BUILD_CMD="make -j1"
 	elif [ "$MY_BUILD_SPEED" = "slow" ]; then
         	MY_BUILD_CMD="mka -j2"
 	elif [ "$MY_BUILD_SPEED" = "fast" ]; then
+        	MY_BUILD_CMD="mka -j11"
+	elif [ "$MY_BUILD_SPEED" = "faster" ]; then
+        	MY_BUILD_CMD="mka -j14"
+	elif [ "$MY_BUILD_SPEED" = "fastest" ]; then
         	MY_BUILD_CMD="mka -j16"
 	else
-        	MY_BUILD_CMD="mka -j12"
+        	MY_BUILD_CMD="mka -j8"
 	fi
+	mv $ROM_TOP_DIR/bootable/recovery/Android.oldmk $ROM_TOP_DIR/bootable/recovery/Android.mk 2> /dev/null
 	if [ $MY_CURRENT_TARGET = emulator ]; then
 		MY_CURRENT_TARGET=generic
+		mv $ROM_TOP_DIR/bootable/recovery/Android.mk $ROM_TOP_DIR/bootable/recovery/Android.oldmk
 		lunch full-eng
+	elif [ $MY_BUILD_VARIANT = "eng" ]; then
+		lunch cm_$MY_CURRENT_TARGET-eng
 	else
         	lunch $MY_CURRENT_TARGET
 	fi
@@ -141,16 +208,17 @@ function maketarget () {
 	fi
         $MY_BUILD_CMD 2>&1 | tee $ANDROID_TOP_DIR/build/$TARGET_PRODUCT-log.txt
         MY_BUILD_RESULT=$?
-	if [ "$MY_BUILD_RESULT" = 0 ] && [ $MY_CURRENT_TARGET != generic ]; then
+	if [ "$MY_BUILD_RESULT" = "0" ] && [ $MY_CURRENT_TARGET != generic ]; then
+                touch -c -t `date --date=@$CUSTOM_BUILD_DATE +%Y%m%d%H%M\.%S` $ROM_TOP_DIR/out/target/product/$MY_CURRENT_TARGET/Sapir*
                 mv $ROM_TOP_DIR/out/target/product/$MY_CURRENT_TARGET/Sapir* $ANDROID_TOP_DIR/build/files/
-	elif [ "$MY_BUILD_RESULT" = 0 ] && [ $MY_CURRENT_TARGET = generic ]; then
+	elif [ "$MY_BUILD_RESULT" = "0" ] && [ $MY_CURRENT_TARGET = generic ]; then
 		mv $ROM_TOP_DIR/out/target/product/$MY_CURRENT_TARGET/*.img $ANDROID_TOP_DIR/build/files/emulator/
 		mv $ROM_TOP_DIR/out/target/product/$MY_CURRENT_TARGET/system/build.prop $ANDROID_TOP_DIR/build/files/emulator/system/
 	fi
         echo "$TARGET_PRODUCT build has been performed" > $ANDROID_TOP_DIR/build/$TARGET_PRODUCT.build
         echo "Code was $MY_BUILD_RESULT" >> $ANDROID_TOP_DIR/build/$TARGET_PRODUCT.build
         tail -3 $ANDROID_TOP_DIR/build/$TARGET_PRODUCT-log.txt >> $ANDROID_TOP_DIR/build/$TARGET_PRODUCT.build
-        mail_files -t $BUILDER_EMAIL -s "$TARGET_PRODUCT Build" -b $ANDROID_TOP_DIR/build/$TARGET_PRODUCT-log.txt < $ANDROID_TOP_DIR/build/$TARGET_PRODUCT.build
+        mail_files --user $BUILDER_EMAIL -pass $MY_PASS --server=smtp.gmail.com:587 --from $BUILDER_EMAIL --to $BUILDER_EMAIL --subject "$TARGET_PRODUCT Build" --attach $ANDROID_TOP_DIR/build/$TARGET_PRODUCT-log.txt --body-plain "`cat $ANDROID_TOP_DIR/build/$TARGET_PRODUCT.build`"
 }
 
 
@@ -158,16 +226,28 @@ if [ "$MY_P1" = "yes" ]; then
         MY_CURRENT_TARGET=p1
         maketarget
 fi
-if [ "$MY_I9100" = "yes" ]; then
-        MY_CURRENT_TARGET=i9100
+if [ "$MY_D2ATT" = "yes" ]; then
+        MY_CURRENT_TARGET=d2att
         maketarget
 fi
 if [ "$MY_I9300" = "yes" ]; then
         MY_CURRENT_TARGET=i9300
         maketarget
 fi
+if [ "$MY_I9100" = "yes" ]; then
+        MY_CURRENT_TARGET=i9100
+        maketarget
+fi
 if [ "$MY_MAGURO" = "yes" ]; then
         MY_CURRENT_TARGET=maguro
+        maketarget
+fi
+if [ "$MY_A200" = "yes" ]; then
+        MY_CURRENT_TARGET=a200
+        maketarget
+fi
+if [ "$MY_I9000" = "yes" ]; then
+        MY_CURRENT_TARGET=galaxysmtd
         maketarget
 fi
 if [ "$MY_EMULATOR" = "yes" ]; then
@@ -175,3 +255,4 @@ if [ "$MY_EMULATOR" = "yes" ]; then
         maketarget
 fi
 
+export HOST_NAME=$LONG_HOSTNAME
