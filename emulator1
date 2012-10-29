@@ -15,7 +15,8 @@
 #
 export ANDROID_PRODUCT_OUT=$ANDROID_TOP_DIR/build/files/emulator
 export ANDROID_BUILD_TOP=$ROM_TOP_DIR
-MY_SKIN_DIR=$ANDROID_TOP_DIR
+export PATH=$PATH:~/android/cm/out/host/linux-x86/bin
+MY_SKIN_DIR=$ANDROID_TOP_DIR/skins
 
 if [ "$1" = "tablet" ] || [ "$1" = "Tablet" ] || [ "$1" = "tab" ]; then
 	MY_SKIN=GalaxyTab
