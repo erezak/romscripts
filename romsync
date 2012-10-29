@@ -13,16 +13,51 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 # 
-cd $ROM_TOP_DIR
-realrepo sync
-if [ "$?" = "0" ]; then
+
+function fetch_proj {
+
+    cd $ROM_TOP_DIR/$1
+    echo "Fetching remotes for $1"
+    git fetch --all
+    echo "Trying auto merge"
+    git merge --stat --log --no-commit CyanogenMod/jellybean
+    if [ "$?" -ne "0" ]; then
+        echo "Check results for $1"
+        exit 1
+    fi
+    sleep 2
+
+}
+
+if [ "$1" != "--local" ]; then
+    cd $ROM_TOP_DIR
+    realrepo sync -j12
+    if [ "$?" = "0" ]; then
 	export my_sync_date=`date -u`
-	sed 's/^merges as of.*/merges as of '"$my_sync_date"'/' $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn > $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn.tmp
-	mv $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn.tmp $ROM_TOP_DIR/vendor/cm/CHANGELOG.mkdn
-else
+	sed 's/^merges as of.*/merges as of '"$my_sync_date"'/' $ROM_TOP_DIR/vendor/erez/CHANGELOG.mkdn > $ROM_TOP_DIR/vendor/erez/CHANGELOG.mkdn.tmp
+	mv $ROM_TOP_DIR/vendor/erez/CHANGELOG.mkdn.tmp $ROM_TOP_DIR/vendor/erez/CHANGELOG.mkdn
+    else
 	echo "*******************************"
 	echo "** Repo did not succeed,     **"
 	echo "** please try again manually **" 
 	echo "*******************************"
 	exit 1
+    fi
 fi
+fetch_proj build
+fetch_proj device/samsung/d2-common
+fetch_proj device/samsung/galaxys2-common
+fetch_proj device/samsung/galaxysmtd
+fetch_proj device/samsung/i9100
+fetch_proj device/samsung/i9300
+fetch_proj device/samsung/maguro
+fetch_proj device/samsung/p1
+fetch_proj device/samsung/p1-common
+fetch_proj device/samsung/skyrocket
+fetch_proj device/samsung/tuna
+fetch_proj frameworks/base
+fetch_proj packages/apps/Settings
+fetch_proj packages/apps/Trebuchet
+fetch_proj system/core
+fetch_proj vendor/cm
+
