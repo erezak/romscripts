@@ -45,6 +45,7 @@ if [ "$1" != "--local" ]; then
     fi
 fi
 fetch_proj build
+fetch_proj device/samsung/d2att
 fetch_proj device/samsung/d2-common
 fetch_proj device/samsung/galaxys2-common
 fetch_proj device/samsung/galaxysmtd
