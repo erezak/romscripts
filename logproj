@@ -16,9 +16,9 @@
 cd $ROM_TOP_DIR
 cd $1
 if [ "$2" = "" ]; then
-	git log -1
+	git log --pretty=oneline -1
 else
-	git log $2 $3 $4
+	git log --pretty=oneline $2 $3 $4
 fi
 cd $ROM_TOP_DIR
 
