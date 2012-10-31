@@ -14,18 +14,35 @@
 #  limitations under the License.
 # 
 
+NOTHING_TO_MERGE="Already up-to-date"
+
 function fetch_proj {
 
     cd $ROM_TOP_DIR/$1
     echo "Fetching remotes for $1"
     git fetch --all
     echo "Trying auto merge"
-    git merge --stat --log --no-commit CyanogenMod/jellybean
-    if [ "$?" -ne "0" ]; then
+    LAST_OUTPUT=`git merge --stat --log --no-commit CyanogenMod/jellybean`
+    LAST_ERROR=$?
+    echo $LAST_OUTPUT
+    if [ "$LAST_ERROR" -ne "0" ]; then
         echo "Check results for $1"
         exit 1
+    elif [[ "$LAST_OUTPUT" == *"$NOTHING_TO_MERGE"* ]]; then
+        echo "Done for $1"
+        echo "******************************"
+        echo "******************************"
+        sleep 3
+    else
+        echo "Merge performed for $1"
+        echo "Please manually commit afer reviewing"
+        echo "Then restart sync"
+        echo "******************************"
+        echo "******************************"
+        echo "******************************"
+        echo "******************************"
+        exit 2
     fi
-    sleep 2
 
 }
 
