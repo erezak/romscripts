@@ -15,38 +15,71 @@
 # 
 
 NOTHING_TO_MERGE="Already up-to-date"
+mkdir -p $ROM_SCRIPTS_DIR/.sync
+SYNC_STANDARD=yes
+if [ -e $ROM_SCRIPTS_DIR/.sync/sync_stage ]; then
+    SYNC_LOCAL_STAGE=`cat $ROM_SCRIPTS_DIR/.sync/sync_stage`
+    rm $ROM_SCRIPTS_DIR/.sync/sync_stage
+else
+    SYNC_LOCAL_STAGE=1
+fi
+
+for i in $@
+do
+        case $i in
+        --local)
+                SYNC_STANDARD=no
+                ;;
+        --restart)
+                SYNC_LOCAL_STAGE=1
+                ;;
+        *)
+                echo "Unknown option: $i"
+                exit 1
+                ;;
+        esac
+done
+
+if [ "$SYNC_STANDARD" = "yes"]; then
+    SYNC_LOCAL_STAGE=1
+fi
 
 function fetch_proj {
-
-    cd $ROM_TOP_DIR/$1
-    echo "Fetching remotes for $1"
-    git fetch --all
-    echo "Trying auto merge"
-    LAST_OUTPUT=`git merge --stat --log --no-commit CyanogenMod/jellybean`
-    LAST_ERROR=$?
-    echo $LAST_OUTPUT
-    if [ "$LAST_ERROR" -ne "0" ]; then
-        echo "Check results for $1"
-        exit 1
-    elif [[ "$LAST_OUTPUT" == *"$NOTHING_TO_MERGE"* ]]; then
-        echo "Done for $1"
-        echo "******************************"
-        echo "******************************"
-        sleep 3
-    else
-        echo "Merge performed for $1"
-        echo "Please manually commit afer reviewing"
-        echo "Then restart sync"
-        echo "******************************"
-        echo "******************************"
-        echo "******************************"
-        echo "******************************"
-        exit 2
+    echo -n "$SYNC_LOCAL_STAGE. "
+    if [ $SYNC_LOCAL_STAGE -eq $CURRENT_SYNC_STAGE ]; then
+        cd $ROM_TOP_DIR/$1
+        echo "Fetching remotes for $1"
+        git fetch --all
+        echo "Trying auto merge"
+        LAST_OUTPUT=`git merge --stat --log --no-commit CyanogenMod/jellybean`
+        LAST_ERROR=$?
+        echo $LAST_OUTPUT
+        if [ "$LAST_ERROR" -ne "0" ]; then
+            echo "Check results for $1"
+            exit 1
+        elif [[ "$LAST_OUTPUT" == *"$NOTHING_TO_MERGE"* ]]; then
+            echo "Done for $1"
+            echo "******************************"
+            echo "******************************"
+            SYNC_LOCAL_STAGE=`expr $SYNC_LOCAL_STAGE + 1`
+            echo $SYNC_LOCAL_STAGE > $ROM_SCRIPTS_DIR/.sync/sync_stage
+        else
+            echo "Merge performed for $1"
+            echo "Please manually commit afer reviewing"
+            echo "Then restart sync"
+            echo "******************************"
+            echo "******************************"
+            echo "******************************"
+            echo "******************************"
+            SYNC_LOCAL_STAGE=`expr $SYNC_LOCAL_STAGE + 1`
+            echo $SYNC_LOCAL_STAGE > $ROM_SCRIPTS_DIR/.sync/sync_stage
+            exit 2
+        fi
     fi
-
+    CURRENT_SYNC_STAGE=`expr $CURRENT_SYNC_STAGE + 1`
 }
 
-if [ "$1" != "--local" ]; then
+if [ "$SYNC_STANDARD" = "yes" ]; then
     cd $ROM_TOP_DIR
     realrepo sync -j12
     if [ "$?" = "0" ]; then
@@ -61,6 +94,8 @@ if [ "$1" != "--local" ]; then
 	exit 1
     fi
 fi
+
+CURRENT_SYNC_STAGE=1
 fetch_proj build
 fetch_proj device/samsung/d2att
 fetch_proj device/samsung/d2-common
@@ -78,4 +113,4 @@ fetch_proj packages/apps/Settings
 fetch_proj packages/apps/Trebuchet
 fetch_proj system/core
 fetch_proj vendor/cm
-
+rm $ROM_SCRIPTS_DIR/.sync/sync_stage
