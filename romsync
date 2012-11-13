@@ -40,13 +40,13 @@ do
         esac
 done
 
-if [ "$SYNC_STANDARD" = "yes"]; then
+if [ "$SYNC_STANDARD" = "yes" ]; then
     SYNC_LOCAL_STAGE=1
 fi
 
 function fetch_proj {
-    echo -n "$SYNC_LOCAL_STAGE. "
     if [ $SYNC_LOCAL_STAGE -eq $CURRENT_SYNC_STAGE ]; then
+        echo -n "$SYNC_LOCAL_STAGE. "
         cd $ROM_TOP_DIR/$1
         echo "Fetching remotes for $1"
         git fetch --all
@@ -81,7 +81,7 @@ function fetch_proj {
 
 if [ "$SYNC_STANDARD" = "yes" ]; then
     cd $ROM_TOP_DIR
-    realrepo sync -j12
+    realrepo sync -j6
     if [ "$?" = "0" ]; then
 	export my_sync_date=`date -u`
 	sed 's/^merges as of.*/merges as of '"$my_sync_date"'/' $ROM_TOP_DIR/vendor/erez/CHANGELOG.mkdn > $ROM_TOP_DIR/vendor/erez/CHANGELOG.mkdn.tmp
@@ -109,8 +109,12 @@ fetch_proj device/samsung/p1-common
 fetch_proj device/samsung/skyrocket
 fetch_proj device/samsung/tuna
 fetch_proj frameworks/base
+fetch_proj packages/apps/Contacts
+fetch_proj packages/apps/DeskClock
+fetch_proj packages/apps/Mms
 fetch_proj packages/apps/Settings
 fetch_proj packages/apps/Trebuchet
 fetch_proj system/core
+echo "******* Last one ******"
 fetch_proj vendor/cm
 rm $ROM_SCRIPTS_DIR/.sync/sync_stage
